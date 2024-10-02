@@ -20,7 +20,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='interceptor',
-    version='1.1.0',
+    version='1.1.1',
     description='Core component',
     long_description='Celery worker to execute various types of workloads',
     url='https://getcarrier.io',

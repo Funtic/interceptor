@@ -24,6 +24,8 @@ LOKI_PORT = int(environ.get('LOKI_PORT', 3100))
 LOG_LEVEL = environ.get('LOG_LEVEL', 'info')
 REMOVE_CONTAINERS = True if environ.get("REMOVE_CONTAINERS", "True") == "True" else False
 PYLON_URL = environ.get('PYLON_URL')
+LAMBDA_DOCKER_NETWORK = environ.get("LAMBDA_DOCKER_NETWORK", "").strip()
+LAMBDA_DOCKER_NETWORK_MODE = environ.get("LAMBDA_DOCKER_NETWORK_MODE", "").strip()
 
 
 NAME_CONTAINER_MAPPING = {
@@ -44,6 +46,20 @@ NAME_CONTAINER_MAPPING = {
 }
 
 LAMBDA_CONTAINER_REPO = environ.get('LAMBDA_CONTAINER_REPO', 'getcarrier')
-BROWSERTIME_CONTAINER = environ.get('BROWSERTIME_CONTAINER', 'getcarrier/browsertime:latest')
-POSTPROCESSOR_CONTAINER = environ.get('POSTPROCESSOR_CONTAINER', 'getcarrier/performance_results_processing:latest')
+BROWSERTIME_CONTAINER = environ.get('BROWSERTIME_CONTAINER', 'getcarrier/browsertime:beta-2.0')
+POSTPROCESSOR_CONTAINER = environ.get('POSTPROCESSOR_CONTAINER', 'getcarrier/performance_results_processing:beta-2.0')
 STRIP_HEADERS = ["content-length"]
+
+
+SSL_CERTS = environ.get('SSL_CERTS', '')
+SSL_VERIFY = environ.get("SSL_VERIFY", "").lower() in ["true", "yes"]
+RABBIT_USER = environ.get('RABBIT_USER', 'user')
+RABBIT_PASSWORD = environ.get('RABBIT_PASSWORD', 'password')
+RABBIT_HOST = environ.get('RABBIT_HOST', 'localhost')
+RABBIT_PORT = environ.get('RABBIT_PORT', '5672')
+RABBIT_USE_SSL = environ.get("RABBIT_USE_SSL", "").lower() in ["true", "yes"]
+RABBIT_SSL_VERIFY = environ.get("RABBIT_SSL_VERIFY", "").lower() in ["true", "yes"]
+QUEUE_NAME = environ.get('QUEUE_NAME', "default")
+CPU_CORES = environ.get('CPU_CORES', 2)
+VHOST = environ.get('VHOST', 'carrier')
+TOKEN = environ.get('TOKEN', '')

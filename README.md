@@ -11,7 +11,7 @@ Should be installed on any machine or VM that planned to be used as a jobs execu
 docker run -d --rm -v /var/run/docker.sock:/var/run/docker.sock  \
       -e CPU_CORES=$CPU_CORES -e REDIS_PASSWORD=$REDIS_PASSWORD  \
       -e REDIS_HOST=$FULLHOST \
-      getcarrier/interceptor:latest
+      getcarrier/interceptor:beta-2.0
 ```
 
 Interceptor need docker.sock to be mounted as it going to provision new containers on host os
@@ -19,7 +19,7 @@ Interceptor need docker.sock to be mounted as it going to provision new containe
 `CPU_CORES` - is an amount of cores you'd like to dedicated for tasks execution
 
 `REDIS_HOST` - address of your redis service (just a name or IP, w/o port) localhost is default
- 
+
 `REDIS_PORT` - port of your redis service. 6379 is default
 
 `REDIS_USER` - is a username to your Redis server. empty string is default

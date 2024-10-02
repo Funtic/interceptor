@@ -6,6 +6,7 @@ from datetime import datetime
 import docker
 import requests
 import urllib3
+from docker.errors import NotFound
 from kubernetes import client
 from kubernetes.client import ApiClient, V1EnvVar, ApiException, V1SecurityContext, \
     V1Volume
@@ -67,23 +68,41 @@ class DockerJob(Job):
     def stop_job(self):
         self.cid.stop(timeout=5)
 
-    def log_status(self, last_logs: list):
-        self.cid.reload()
-        self.logger.info(f'Container Status: {self.cid.status}')
+    @property
+    def container_stats(self) -> str:
+        template = f'Container {self.cid.id}\n\tSTATUS: {self.cid.status}'
         resource_usage = self.client_lowlevel.stats(self.cid.id, stream=False)
-        self.logger.info(f'Container {self.cid.id} resource usage -- '
-                         f'CPU: {round(float(resource_usage["cpu_stats"]["cpu_usage"]["total_usage"]) / c.CPU_MULTIPLIER, 2)} '
-                         f'RAM: {round(float(resource_usage["memory_stats"]["usage"]) / (1024 * 1024), 2)} Mb '
-                         f'of {round(float(resource_usage["memory_stats"]["limit"]) / (1024 * 1024), 2)} Mb')
-        logs = self.client_lowlevel.logs(
-            self.cid.id, stream=False, tail=100).decode(
-            "utf-8",
-            errors='ignore').split(
-            '\r\n')
-        for each in logs:
-            if each not in last_logs:
-                self.logger.info(each)
-                last_logs.append(each)
+        try:
+            cpu = round(float(resource_usage["cpu_stats"]["cpu_usage"]["total_usage"]) / c.CPU_MULTIPLIER, 2)
+            template += f'\n\tCPU: {cpu}'
+        except KeyError:
+            self.logger.warning('Cannot get cpu stats')
+            self.logger.debug(f'resource_usage: {resource_usage}')
+        try:
+            ram = round(float(resource_usage["memory_stats"]["usage"]) / (1024 * 1024), 2)
+            ram_limit = round(float(resource_usage["memory_stats"]["limit"]) / (1024 * 1024), 2)
+            template += f'\n\tRAM: {ram} / {ram_limit} Mb'
+        except KeyError:
+            self.logger.warning('Cannot get ram stats')
+            self.logger.debug(f'resource_usage: {resource_usage}')
+        return template
+
+    def log_status(self, last_logs: list) -> None:
+        try:
+            self.cid.reload()
+            self.logger.info(self.container_stats)
+            logs = self.client_lowlevel.logs(
+                self.cid.id, stream=False, tail=100).decode(
+                "utf-8",
+                errors='ignore').split(
+                '\r\n')
+            for each in logs:
+                if each not in last_logs:
+                    self.logger.info(each)
+                    last_logs.append(each)
+        except NotFound:
+            self.logger.info('Container terminated')
+            self.cid.attrs["State"] = "exited"
 
     def send_resource_usage(self, job_type, params, time_to_sleep=None):
         base_url = params.get("galloper_url") or params.get("GALLOPER_URL")
@@ -98,12 +117,12 @@ class DockerJob(Job):
             'time_to_sleep': time_to_sleep,
             'cpu': round(float(resource_usage["cpu_stats"]["cpu_usage"]["total_usage"]) / c.CPU_MULTIPLIER, 2),
             'memory_usage': round(float(resource_usage["memory_stats"]["usage"]) / (1024 * 1024), 2),
-            'memory_limit': round(float(resource_usage["memory_stats"]["limit"]) / (1024 * 1024), 2),               
+            'memory_limit': round(float(resource_usage["memory_stats"]["limit"]) / (1024 * 1024), 2),
         }
         headers = {'content-type': 'application/json'}
         if token:
             headers['Authorization'] = f'bearer {token}'
-        requests.put(url, json=data, headers=headers)
+        requests.put(url, json=data, headers=headers, verify=c.SSL_VERIFY)
 
     @property
     def status(self):
@@ -177,12 +196,12 @@ class KubernetesJob(Job):
             'report_id': params['report_id'],
             'time_to_sleep': time_to_sleep,
             'job_type': job_type,
-            'stats': resource_usage                 
+            'stats': resource_usage
         }
         headers = {'content-type': 'application/json'}
         if token:
             headers['Authorization'] = f'bearer {token}'
-        requests.put(url, json=data, headers=headers)
+        requests.put(url, json=data, headers=headers, verify=c.SSL_VERIFY)
 
     def collect_resource_usage(self):
         resource_usage = []
@@ -197,9 +216,9 @@ class KubernetesJob(Job):
                 container_limits = container.resources.limits
                 resource_usage.append({
                     'pod': pod.metadata.name,
-                    'cpu_limit': container_limits['cpu'], 
+                    'cpu_limit': container_limits['cpu'],
                     'memory_limit': container_limits['memory']})
-        return resource_usage  
+        return resource_usage
 
 class DockerClient(Client):
 
@@ -267,7 +286,7 @@ class KubernetesClient(Client):
         }
         headers = {'content-type': 'application/json',
                    'Authorization': f'bearer {bearer_token}'}
-        res = requests.post(url, json=data, headers=headers)
+        res = requests.post(url, json=data, headers=headers, verify=c.SSL_VERIFY)
         res.raise_for_status()
         capacity = res.json()
         return capacity

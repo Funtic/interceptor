@@ -11,8 +11,12 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+
+from interceptor import ssl_support, constants as c
+
+ssl_support.init(c.SSL_CERTS)
+
 import signal
-from os import environ
 from time import sleep, mktime
 from traceback import format_exc
 from typing import List, Optional, Union, Iterable
@@ -27,20 +31,14 @@ from interceptor.lambda_executor import LambdaExecutor
 from interceptor.logger import logger, get_centry_logger
 from interceptor.post_processor import PostProcessor
 
-from interceptor import constants as c
 from interceptor.utils import build_api_url
 
-RABBIT_USER = environ.get('RABBIT_USER', 'user')
-RABBIT_PASSWORD = environ.get('RABBIT_PASSWORD', 'password')
-RABBIT_HOST = environ.get('RABBIT_HOST', 'localhost')
-RABBIT_PORT = environ.get('RABBIT_PORT', '5672')
-QUEUE_NAME = environ.get('QUEUE_NAME', "default")
-CPU_CORES = environ.get('CPU_CORES', 2)
-VHOST = environ.get('VHOST', 'carrier')
-TOKEN = environ.get('TOKEN', '')
-
-app = Minion(host=RABBIT_HOST, port=RABBIT_PORT,
-             user=RABBIT_USER, password=RABBIT_PASSWORD, queue=QUEUE_NAME, vhost=VHOST)
+app = Minion(
+    host=c.RABBIT_HOST, port=c.RABBIT_PORT,
+    user=c.RABBIT_USER, password=c.RABBIT_PASSWORD,
+    queue=c.QUEUE_NAME, vhost=c.VHOST,
+    use_ssl=c.RABBIT_USE_SSL, ssl_verify=c.RABBIT_SSL_VERIFY
+)
 
 stop_task = False
 
@@ -164,9 +162,11 @@ def browsertime(
         if not headers:
             headers = {}
         client = DockerClient(logger)
-        env_vars = {"galloper_url": galloper_url, "project_id": project_id, "token": token,
-                    "bucket": bucket,
-                    "filename": filename, "view": view, "tests": tests}
+        env_vars = {
+            "galloper_url": galloper_url, "project_id": project_id,
+            "token": token, "bucket": bucket,
+            "filename": filename, "view": view, "tests": tests
+        }
         cmd = url
         if headers:
             cmd += " -H "
@@ -320,22 +320,26 @@ def execute_job(job_type, container, execution_params, job_name,
             # job.send_resource_usage(job_type=job_type, params=execution_params,
             #     time_to_sleep=time_to_sleep)
         except Exception as e:
+            centry_logger.debug(format_exc())
             centry_logger.error(e)
             break
     return "Done"
 
 
 def main():
-    if QUEUE_NAME != "__internal":
+    if c.QUEUE_NAME != "__internal":
         if c.PYLON_URL:
             rabbit_url = build_api_url('projects', 'rabbitmq', mode='administration')
-            url = f"{c.PYLON_URL}{rabbit_url}/{VHOST}"
-            data = {"name": QUEUE_NAME}
+            url = f"{c.PYLON_URL}{rabbit_url}/{c.VHOST}"
+            data = {"name": c.QUEUE_NAME}
             headers = {'content-type': 'application/json'}
-            if TOKEN:
-                headers['Authorization'] = f'bearer {TOKEN}'
-            requests.post(url, json=data, headers=headers)
-    app.run(workers=int(CPU_CORES))
+            if c.TOKEN:
+                headers['Authorization'] = f'bearer {c.TOKEN}'
+            try:
+                requests.post(url, json=data, headers=headers, verify=c.SSL_VERIFY)
+            except requests.exceptions.ConnectionError:
+                print('FAILED TO REGISTER IN PYLON', url, data)
+    app.run(workers=int(c.CPU_CORES))
 
 
 if __name__ == '__main__':

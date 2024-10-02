@@ -32,6 +32,10 @@ class JobsWrapper(object):
             "galloper_url": execution_params["GALLOPER_URL"],
             "token": execution_params["GALLOPER_AUTH_TOKEN"],
         }
+        #
+        if "SSL_CERTS" in execution_params:
+            docker_environment["SSL_CERTS"] = execution_params["SSL_CERTS"]
+        #
         docker_mounts = list()
         #
         return client.run(docker_container, name=docker_name, nano_cpus=c.CONTAINER_CPU_QUOTA,
@@ -51,6 +55,10 @@ class JobsWrapper(object):
             "galloper_url": execution_params["GALLOPER_URL"],
             "token": execution_params["GALLOPER_AUTH_TOKEN"],
         }
+        #
+        if "SSL_CERTS" in execution_params:
+            docker_environment["SSL_CERTS"] = execution_params["SSL_CERTS"]
+        #
         docker_mounts = list()
         #
         return client.run(docker_container, name=docker_name, nano_cpus=c.CONTAINER_CPU_QUOTA,
@@ -70,6 +78,10 @@ class JobsWrapper(object):
             "galloper_url": execution_params["GALLOPER_URL"],
             "token": execution_params["GALLOPER_AUTH_TOKEN"],
         }
+        #
+        if "SSL_CERTS" in execution_params:
+            docker_environment["SSL_CERTS"] = execution_params["SSL_CERTS"]
+        #
         docker_mounts = list()
         #
         return client.run(docker_container, name=docker_name, nano_cpus=c.CONTAINER_CPU_QUOTA,
